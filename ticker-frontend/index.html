@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор бегущей строки с видео</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Roboto', 'Segoe UI', Tahoma, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1C2526, #2E3B3E);
+            color: #F4F4F4;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(20, 20, 20, 0.85);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2.2rem;
+            color: #FF8C00;
+            text-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .control-group {
+            background: rgba(40, 40, 40, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 140, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .control-group:hover {
+            border-color: #FF8C00;
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.3);
+        }
+        
+        h2 {
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+            color: #FF8C00;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #F4F4F4;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            border: none;
+            border-radius: 5px;
+            background: #2E2E2E;
+            color: #F4F4F4;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 8px rgba(255, 140, 0, 0.5);
+            background: #363636;
+        }
+        
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+        
+        .preview-container {
+            background: #1C2526;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            position: relative;
+            height: 150px;
+            display: flex;
+            align-items: center;
+            border: 2px solid #FF8C00;
+        }
+        
+        #ticker {
+            white-space: nowrap;
+            position: absolute;
+            font-weight: 600;
+            font-size: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #FF8C00;
+            color: #1C2526;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        button:hover {
+            background: #FFA500;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 140, 0, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #4A4A4A;
+            color: #777;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #saveBtn, #convertBtn {
+            background: #2E3B3E;
+            color: #FF8C00;
+        }
+        
+        #saveBtn:hover:not(:disabled), #convertBtn:hover:not(:disabled) {
+            background: #3C4F52;
+            box-shadow: 0 4px 12px rgba(255, 140, 0, 0.4);
+        }
+        
+        .info {
+            margin-top: 25px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #A0A0A0;
+        }
+        
+        .color-preview {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            margin-right: 5px;
+            vertical-align: middle;
+            border: 1px solid #FF8C00;
+        }
+        
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .speed-value {
+            min-width: 35px;
+            text-align: center;
+            color: #FF8C00;
+        }
+        
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: center;
+            color: #FF4C4C;
+        }
+        
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #FF4C4C;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .canvas-container {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        #videoCanvas {
+            border: 2px solid #FF8C00;
+            border-radius: 5px;
+            max-width: 100%;
+        }
+        
+        .download-link {
+            margin-top: 12px;
+            text-align: center;
+        }
+        
+        .download-link a {
+            color: #FF8C00;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+        
+        .download-link a:hover {
+            text-decoration: underline;
+            color: #FFA500;
+        }
+        
+        .status {
+            margin-top: 12px;
+            text-align: center;
+            min-height: 22px;
+            color: #F4F4F4;
+        }
+        
+        /* Эффекты текста */
+        .text-effect-glow { text-shadow: 0 0 10px #FF8C00, 0 0 20px #FF8C00; }
+        .text-effect-neon { text-shadow: 0 0 5px #FF8C00, 0 0 10px #FF8C00, 0 0 15px #FF8C00; }
+        .text-effect-stroke { -webkit-text-stroke: 1px #FF8C00; color: transparent; }
+        .text-effect-pulse { animation: textPulse 2s infinite; }
+        .text-effect-flicker { animation: textFlicker 3s infinite; }
+        .text-effect-rainbow { animation: rainbowText 5s infinite; }
+        .text-effect-bounce { animation: textBounce 1s infinite; }
+        .text-effect-shadow { text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.7); }
+        .text-effect-shimmer { animation: shimmerText 2s infinite linear; }
+        .text-effect-blur { filter: blur(1px); transition: filter 0.3s; }
+        
+        @keyframes textPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes textFlicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        @keyframes rainbowText {
+            0% { color: #FF8C00; }
+            20% { color: #FF4C4C; }
+            40% { color: #4CAF50; }
+            60% { color: #2196F3; }
+            80% { color: #9C27B0; }
+            100% { color: #FF8C00; }
+        }
+        
+        @keyframes textBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        @keyframes shimmerText {
+            0% { text-shadow: 0 0 5px #FF8C00; }
+            50% { text-shadow: 0 0 15px #FF8C00, 0 0 25px #FF8C00; }
+            100% { text-shadow: 0 0 5px #FF8C00; }
+        }
+        
+        /* Эффекты фона для preview-container */
+        .preview-container.bg-effect-gradient { background: linear-gradient(45deg, #1C2526, #FF8C00); }
+        .preview-container.bg-effect-pulse { animation: bgPulse 5s infinite; }
+        .preview-container.bg-effect-stars { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="10" cy="10" r="2" fill="white" /><circle cx="50" cy="50" r="1" fill="white" /><circle cx="90" cy="90" r="1.5" fill="white" /></svg>'), #1C2526; background-size: 50px; }
+        .preview-container.bg-effect-wave { background: linear-gradient(45deg, #1C2526, #2E3B3E, #FF8C00, #2E3B3E, #1C2526); background-size: 400%; animation: bgWave 10s infinite; }
+        .preview-container.bg-effect-glitch { animation: bgGlitch 0.5s infinite; }
+        .preview-container.bg-effect-rain { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100"><rect x="10" y="0" width="2" height="20" fill="#FF8C00" /></svg>'), #1C2526; background-size: 20px; animation: bgRain 1s linear infinite; }
+        .preview-container.bg-effect-sparkle { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="20" cy="20" r="3" fill="#FF8C00" /><circle cx="80" cy="80" r="2" fill="#FF8C00" /></svg>'), #1C2526; background-size: 100px; animation: sparkle 3s infinite; }
+        .preview-container.bg-effect-matrix { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="100"><text x="0" y="20" font-size="12" fill="#FF8C00">101</text></svg>'), #1C2526; background-size: 20px; animation: bgRain 2s linear infinite; }
+        .preview-container.bg-effect-aurora { background: linear-gradient(45deg, #1C2526, #FF8C00, #2E3B3E, #FF4C4C); background-size: 400%; animation: aurora 15s infinite; }
+        .preview-container.bg-effect-smoke { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><circle cx="50" cy="50" r="30" fill="rgba(255,140,0,0.2)" /></svg>'), #1C2526; background-size: 100px; animation: smoke 8s infinite; }
+        
+        @keyframes bgPulse {
+            0% { background-color: #1C2526; }
+            50% { background-color: #2E3B3E; }
+            100% { background-color: #1C2526; }
+        }
+        
+        @keyframes bgWave {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 400% 50%; }
+        }
+        
+        @keyframes bgGlitch {
+            0% { background-position: 0 0; }
+            20% { background-position: 5px 0; }
+            40% { background-position: -5px 0; }
+            60% { background-position: 3px 0; }
+            80% { background-position: -3px 0; }
+            100% { background-position: 0 0; }
+        }
+        
+        @keyframes bgRain {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100px; }
+        }
+        
+        @keyframes sparkle {
+            0% { background-position: 0 0; }
+            50% { background-position: 10px 10px; }
+            100% { background-position: 0 0; }
+        }
+        
+        @keyframes aurora {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes smoke {
+            0% { background-position: 0 0; opacity: 0.8; }
+            50% { background-position: 20px 20px; opacity: 0.4; }
+            100% { background-position: 0 0; opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Генератор бегущей строки с видео</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <h2>Текст и настройки</h2>
+                
+                <label for="textInput">Текст бегущей строки:</label>
+                <textarea id="textInput" placeholder="Введите текст для бегущей строки...">Добро пожаловать в генератор бегущей строки! Создавайте красивые анимированные тексты легко и быстро!</textarea>
+                
+                <label for="fontSize">Размер шрифта:</label>
+                <select id="fontSize">
+                    <option value="24">Маленький (24px)</option>
+                    <option value="36" selected>Средний (36px)</option>
+                    <option value="48">Большой (48px)</option>
+                    <option value="60">Очень большой (60px)</option>
+                </select>
+                
+                <label for="fontFamily">Шрифт:</label>
+                <select id="fontFamily">
+                    <option value="Roboto, sans-serif" selected>Roboto</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="'Comic Sans MS', cursive">Comic Sans MS</option>
+                </select>
+                
+                <label for="textEffect">Эффект текста:</label>
+                <select id="textEffect">
+                    <option value="none" selected>Без эффекта</option>
+                    <option value="text-effect-glow">Сияние</option>
+                    <option value="text-effect-neon">Неон</option>
+                    <option value="text-effect-stroke">Контур</option>
+                    <option value="text-effect-pulse">Пульсация</option>
+                    <option value="text-effect-flicker">Мерцание</option>
+                    <option value="text-effect-rainbow">Радужный</option>
+                    <option value="text-effect-bounce">Прыжки</option>
+                    <option value="text-effect-shadow">Тень</option>
+                    <option value="text-effect-shimmer">Мерцание света</option>
+                    <option value="text-effect-blur">Размытие</option>
+                </select>
+                
+                <label for="duration">Длительность видео (секунды):</label>
+                <input type="number" id="duration" min="3" max="30" value="5">
+            </div>
+            
+            <div class="control-group">
+                <h2>Внешний вид</h2>
+                
+                <label for="textColor">Цвет текста:</label>
+                <div>
+                    <span class="color-preview" id="textColorPreview" style="background-color: #F4F4F4;"></span>
+                    <input type="color" id="textColor" value="#F4F4F4">
+                </div>
+                
+                <label for="bgColor">Цвет фона:</label>
+                <div>
+                    <span class="color-preview" id="bgColorPreview" style="background-color: #1C2526;"></span>
+                    <input type="color" id="bgColor" value="#1C2526">
+                </div>
+                
+                <label for="bgEffect">Эффект фона:</label>
+                <select id="bgEffect">
+                    <option value="none" selected>Без эффекта</option>
+                    <option value="bg-effect-gradient">Градиент</option>
+                    <option value="bg-effect-pulse">Пульсация</option>
+                    <option value="bg-effect-stars">Звезды</option>
+                    <option value="bg-effect-wave">Волны</option>
+                    <option value="bg-effect-glitch">Глитч</option>
+                    <option value="bg-effect-rain">Дождь</option>
+                    <option value="bg-effect-sparkle">Искры</option>
+                    <option value="bg-effect-matrix">Матрица</option>
+                    <option value="bg-effect-aurora">Аврора</option>
+                    <option value="bg-effect-smoke">Дым</option>
+                </select>
+                
+                <label for="speed">Скорость:</label>
+                <div class="speed-control">
+                    <span>Медленно</span>
+                    <input type="range" id="speed" min="1" max="20" value="5">
+                    <span>Быстро</span>
+                    <span class="speed-value" id="speedValue">5</span>
+                </div>
+                
+                <label for="direction">Направление:</label>
+                <select id="direction">
+                    <option value="left" selected>Слева направо</option>
+                    <option value="right">Справа налево</option>
+                </select>
+            </div>
+        </div>
+        
+        <h2>Предпросмотр:</h2>
+        <div class="preview-container" id="preview">
+            <div id="ticker">Добро пожаловать в генератор бегущей строки! Создавайте красивые анимированные тексты легко и быстро!</div>
+        </div>
+        
+        <div class="buttons">
+            <button id="startBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                    <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                </svg>
+                Запустить
+            </button>
+            <button id="stopBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                    <rect x="5" y="5" width="6" height="6" rx="1"/>
+                </svg>
+                Остановить
+            </button>
+            <button id="saveBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                </svg>
+                Сохранить видео (WebM)
+            </button>
+            <button id="convertBtn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 1a7 7 0 0 0-7 7c0 1.57.52 3.02 1.39 4.19a.5.5 0 0 0 .81-.19l1-3a.5.5 0 0 0-.47-.69H2.5a5.5 5.5 0 1 1 11 0h-1.23a.5.5 0 0 0-.47.69l1 3a.5.5 0 0 0 .81.19A7 7 0 0 0 15 8a7 7 0 0 0-7-7z"/>
+                </svg>
+                Конвертировать в MP4
+            </button>
+        </div>
+        
+        <div class="recording-indicator" id="recordingIndicator">
+            <div class="recording-dot"></div>
+            <span>Идет запись видео... Пожалуйста, подождите.</span>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="canvas-container" id="canvasContainer">
+            <h3>Превью видео:</h3>
+            <canvas id="videoCanvas" width="5120" height="1080"></canvas>
+        </div>
+        
+        <div class="download-link" id="downloadLink">
+            <a href="#" id="downloadAnchor" download="бегущая_строка.webm">Скачать видеофайл (WebM)</a>
+            <a href="#" id="downloadMp4Anchor" download="бегущая_строка.mp4" style="display: none;">Скачать видеофайл (MP4)</a>
+        </div>
+        
+        <div class="info">
+            <p>После настройки текста и внешнего вида нажмите "Запустить" для предпросмотра, затем "Сохранить видео" для экспорта в WebM.</p>
+            <p>Для конвертации в MP4 выберите файл WebM с помощью кнопки "Конвертировать в MP4".</p>
+            <p>Видео сохраняется в формате WebM или MP4 с разрешением 5120x1080. Длительность записи можно настроить (по умолчанию 5 секунд).</p>
+        </div>
+    </div>
+
+    <script>
+        // Элементы DOM
+        const textInput = document.getElementById('textInput');
+        const fontSize = document.getElementById('fontSize');
+        const fontFamily = document.getElementById('fontFamily');
+        const textColor = document.getElementById('textColor');
+        const bgColor = document.getElementById('bgColor');
+        const speed = document.getElementById('speed');
+        const speedValue = document.getElementById('speedValue');
+        const direction = document.getElementById('direction');
+        const duration = document.getElementById('duration');
+        const ticker = document.getElementById('ticker');
+        const preview = document.getElementById('preview');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const convertBtn = document.getElementById('convertBtn');
+        const textColorPreview = document.getElementById('textColorPreview');
+        const bgColorPreview = document.getElementById('bgColorPreview');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const videoCanvas = document.getElementById('videoCanvas');
+        const downloadLink = document.getElementById('downloadLink');
+        const downloadAnchor = document.getElementById('downloadAnchor');
+        const downloadMp4Anchor = document.getElementById('downloadMp4Anchor');
+        const status = document.getElementById('status');
+        const textEffect = document.getElementById('textEffect');
+        const bgEffect = document.getElementById('bgEffect');
+        
+        // Контекст canvas
+        const ctx = videoCanvas.getContext('2d');
+        
+        // Переменные анимации
+        let animationId = null;
+        let position = 0;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let recording = false;
+        let recordingStartTime = 0;
+        let recordingDuration = 0;
+        let lastFrameTime = 0;
+
+        // Обновление предпросмотра цвета
+        textColor.addEventListener('input', () => {
+            textColorPreview.style.backgroundColor = textColor.value;
+        });
+        
+        bgColor.addEventListener('input', () => {
+            bgColorPreview.style.backgroundColor = bgColor.value;
+            if (bgEffect.value === 'none') {
+                preview.style.background = bgColor.value;
+            }
+        });
+        
+        // Обновление значения скорости
+        speed.addEventListener('input', () => {
+            speedValue.textContent = speed.value;
+        });
+        
+        // Функция обновления внешнего вида бегущей строки
+        function updateTicker() {
+            ticker.textContent = textInput.value;
+            ticker.style.fontSize = fontSize.value + 'px';
+            ticker.style.fontFamily = fontFamily.value;
+            ticker.style.color = textColor.value;
+            
+            // Удаляем предыдущие эффекты текста
+            ticker.className = '';
+            if (textEffect.value !== 'none') {
+                ticker.classList.add(textEffect.value);
+            }
+            
+            // Удаляем предыдущие эффекты фона
+            preview.className = 'preview-container';
+            if (bgEffect.value !== 'none') {
+                preview.classList.add(bgEffect.value);
+            } else {
+                preview.style.background = bgColor.value;
+            }
+        }
+        
+        // Функция анимации для предпросмотра
+        function animateTicker(timestamp) {
+            if (!lastFrameTime) lastFrameTime = timestamp;
+            const deltaTime = (timestamp - lastFrameTime) / 1000; // Время в секундах
+            lastFrameTime = timestamp;
+
+            const tickerWidth = ticker.offsetWidth;
+            const previewWidth = preview.offsetWidth;
+            const speedFactor = parseInt(speed.value) * 100 * deltaTime; // Скорость в пикселях в секунду
+            
+            if (direction.value === 'left') {
+                position -= speedFactor;
+                if (position < -tickerWidth) {
+                    position = previewWidth;
+                }
+            } else {
+                position += speedFactor;
+                if (position > previewWidth) {
+                    position = -tickerWidth;
+                }
+            }
+            
+            ticker.style.left = position + 'px';
+            animationId = requestAnimationFrame(animateTicker);
+        }
+        
+        // Функция для получения цвета для эффекта rainbow
+        function getRainbowColor(timestamp) {
+            const t = (timestamp % 5000) / 5000; // Период 5 секунд
+            if (t < 0.2) return '#FF8C00';
+            if (t < 0.4) return '#FF4C4C';
+            if (t < 0.6) return '#4CAF50';
+            if (t < 0.8) return '#2196F3';
+            return '#9C27B0';
+        }
+        
+        // Функция для рендеринга кадра на canvas
+        function renderFrame(timestamp) {
+            if (!lastFrameTime) lastFrameTime = timestamp;
+            const deltaTime = (timestamp - lastFrameTime) / 1000; // Время в секундах
+            lastFrameTime = timestamp;
+
+            // Очищаем canvas
+            if (bgEffect.value === 'none') {
+                ctx.fillStyle = bgColor.value;
+                ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+            } else {
+                const computedStyle = getComputedStyle(preview);
+                ctx.fillStyle = computedStyle.background;
+                ctx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+            }
+            
+            // Устанавливаем стиль текста с увеличенным размером (90% высоты canvas)
+            const videoFontSize = videoCanvas.height * 0.9; // 972px для 1080px высоты
+            ctx.font = `${videoFontSize}px ${fontFamily.value}`;
+            ctx.textBaseline = 'middle';
+            
+            // Применяем эффекты текста
+            ctx.fillStyle = textColor.value;
+            ctx.strokeStyle = '#FF8C00';
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.globalAlpha = 1;
+            ctx.filter = 'none';
+            let scale = 1;
+            let yOffset = 0;
+
+            if (textEffect.value === 'text-effect-glow') {
+                ctx.shadowColor = '#FF8C00';
+                ctx.shadowBlur = 10;
+            } else if (textEffect.value === 'text-effect-neon') {
+                ctx.shadowColor = '#FF8C00';
+                ctx.shadowBlur = 15;
+            } else if (textEffect.value === 'text-effect-stroke') {
+                ctx.strokeStyle = '#FF8C00';
+                ctx.lineWidth = videoFontSize * 0.01; // Масштабируем ширину контура
+                ctx.strokeText(textInput.value, position, videoCanvas.height / 2);
+                ctx.fillStyle = 'transparent';
+            } else if (textEffect.value === 'text-effect-pulse') {
+                scale = 1 + 0.05 * Math.sin(timestamp / 1000 * Math.PI); // Период 2 секунды
+            } else if (textEffect.value === 'text-effect-flicker') {
+                ctx.globalAlpha = 0.7 + 0.3 * Math.sin(timestamp / 1500 * Math.PI); // Период 3 секунды
+            } else if (textEffect.value === 'text-effect-rainbow') {
+                ctx.fillStyle = getRainbowColor(timestamp);
+            } else if (textEffect.value === 'text-effect-bounce') {
+                yOffset = -5 * Math.sin(timestamp / 500 * Math.PI); // Период 1 секунда
+            } else if (textEffect.value === 'text-effect-shadow') {
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+                ctx.shadowBlur = 5;
+                ctx.shadowOffsetX = 3;
+                ctx.shadowOffsetY = 3;
+            } else if (textEffect.value === 'text-effect-shimmer') {
+                ctx.shadowColor = '#FF8C00';
+                ctx.shadowBlur = 5 + 10 * Math.sin(timestamp / 1000 * Math.PI); // Период 2 секунды
+            } else if (textEffect.value === 'text-effect-blur') {
+                ctx.filter = 'blur(1px)';
+            }
+            
+            // Вычисляем позицию текста с той же скоростью
+            const textWidth = ctx.measureText(textInput.value).width;
+            const canvasWidth = videoCanvas.width;
+            const canvasHeight = videoCanvas.height;
+            const yPos = canvasHeight / 2 + yOffset;
+            const speedFactor = parseInt(speed.value) * 100 * deltaTime; // Скорость в пикселях в секунду
+            
+            if (direction.value === 'left') {
+                position -= speedFactor;
+                if (position < -textWidth) {
+                    position = canvasWidth;
+                }
+            } else {
+                position += speedFactor;
+                if (position > canvasWidth) {
+                    position = -textWidth;
+                }
+            }
+            
+            // Применяем масштабирование для pulse
+            ctx.save();
+            if (textEffect.value === 'text-effect-pulse') {
+                ctx.translate(position, yPos);
+                ctx.scale(scale, scale);
+                ctx.translate(-position, -yPos);
+            }
+            
+            // Рисуем текст
+            ctx.fillText(textInput.value, position, yPos);
+            if (textEffect.value === 'text-effect-stroke') {
+                ctx.strokeText(textInput.value, position, yPos);
+            }
+            
+            ctx.restore();
+            
+            // Если идет запись, проверяем время
+            if (recording) {
+                const elapsed = Date.now() - recordingStartTime;
+                status.textContent = `Запись: ${(elapsed / 1000).toFixed(1)} / ${recordingDuration} секунд`;
+                
+                if (elapsed >= recordingDuration * 1000) {
+                    stopRecording();
+                } else {
+                    requestAnimationFrame(renderFrame);
+                }
+            } else {
+                requestAnimationFrame(renderFrame);
+            }
+        }
+        
+        // Функция начала записи
+        async function startRecording() {
+            try {
+                status.textContent = "Подготовка к записи...";
+                
+                // Получаем поток с canvas
+                const stream = videoCanvas.captureStream(30);
+                recordedChunks = [];
+                
+                // Создаем MediaRecorder
+                const options = { mimeType: 'video/webm; codecs=vp9' };
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                // Обработчики событий MediaRecorder
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Создаем ссылку для скачивания WebM
+                    downloadAnchor.href = url;
+                    downloadAnchor.download = `бегущая_строка_${Date.now()}.webm`;
+                    
+                    // Показываем ссылку для скачивания
+                    downloadLink.style.display = 'block';
+                    canvasContainer.style.display = 'block';
+                    recordingIndicator.style.display = 'none';
+                    
+                    // Восстанавливаем кнопки
+                    saveBtn.disabled = false;
+                    startBtn.disabled = false;
+                    stopBtn.disabled = false;
+                    convertBtn.disabled = false;
+                    
+                    status.textContent = "Видео WebM готово к скачиванию! Используйте 'Конвертировать в MP4' для преобразования.";
+                    
+                    // Перезапускаем анимацию предпросмотра, если она была активна
+                    if (!animationId) {
+                        startBtn.click();
+                    }
+                };
+                
+                // Устанавливаем длительность записи
+                recordingDuration = parseInt(duration.value);
+                recordingStartTime = Date.now();
+                
+                // Начинаем запись
+                mediaRecorder.start();
+                recording = true;
+                
+                // Показываем индикатор записи
+                recordingIndicator.style.display = 'flex';
+                saveBtn.disabled = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                convertBtn.disabled = true;
+                
+                status.textContent = "Запись началась...";
+                
+                // Запускаем рендеринг
+                renderFrame(performance.now());
+                
+            } catch (error) {
+                console.error("Ошибка при записи:", error);
+                status.textContent = "Ошибка при записи видео. Попробуйте другой браузер.";
+                recording = false;
+                saveBtn.disabled = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = false;
+                convertBtn.disabled = false;
+                recordingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Функция остановки записи
+        function stopRecording() {
+            if (!recording || !mediaRecorder) return;
+            
+            recording = false;
+            mediaRecorder.stop();
+        }
+        
+        // Обработчик для кнопки конвертации
+        convertBtn.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/webm';
+            input.style.display = 'none';
+            
+            input.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    convertBtn.disabled = true;
+                    status.textContent = "Отправка файла на сервер для конвертации...";
+                    
+                    const formData = new FormData();
+                    formData.append('video', file);
+                    
+                    try {
+                        const response = await fetch('https://your-render-backend-url.com/convert', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            downloadMp4Anchor.href = url;
+                            downloadMp4Anchor.style.display = 'inline';
+                            status.textContent = "Конвертация завершена! MP4 готов к скачиванию.";
+                        } else {
+                            throw new Error('Ошибка сервера');
+                        }
+                    } catch (error) {
+                        console.error('Ошибка при конвертации:', error);
+                        status.textContent = "Ошибка при конвертации в MP4. Попробуйте снова.";
+                    } finally {
+                        convertBtn.disabled = false;
+                    }
+                }
+            });
+            
+            document.body.appendChild(input);
+            input.click();
+            document.body.removeChild(input);
+        });
+        
+        // Обработчики событий
+        textInput.addEventListener('input', updateTicker);
+        fontSize.addEventListener('change', updateTicker);
+        fontFamily.addEventListener('change', updateTicker);
+        textColor.addEventListener('input', updateTicker);
+        bgColor.addEventListener('input', updateTicker);
+        textEffect.addEventListener('change', updateTicker);
+        bgEffect.addEventListener('change', updateTicker);
+        
+        startBtn.addEventListener('click', () => {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            updateTicker();
+            lastFrameTime = 0;
+            animateTicker(performance.now());
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            status.textContent = "Анимация запущена";
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            status.textContent = "Анимация остановлена";
+        });
+        
+        saveBtn.addEventListener('click', () => {
+            // Останавливаем анимацию предпросмотра для записи
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            // Сбрасываем позицию и время для синхронизации
+            position = direction.value === 'left' ? videoCanvas.width : -ctx.measureText(textInput.value).width;
+            lastFrameTime = 0;
+            
+            // Начинаем запись видео
+            startRecording();
+        });
+        
+        // Инициализация
+        updateTicker();
+        stopBtn.disabled = true;
+        status.textContent = "Настройте параметры и нажмите 'Запустить' для предпросмотра";
+        
+        // Запускаем рендеринг canvas даже когда не записываем
+        renderFrame(performance.now());
+    </script>
+</body>
+</html>
