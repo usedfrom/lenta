@@ -498,13 +498,12 @@
         
         <div class="download-link" id="downloadLink">
             <a href="#" id="downloadAnchor" download="бегущая_строка.webm">Скачать видеофайл (WebM)</a>
-            <a href="#" id="downloadMp4Anchor" download="бегущая_строка.mp4" style="display: none;">Скачать видеофайл (MP4)</a>
         </div>
         
         <div class="info">
             <p>После настройки текста и внешнего вида нажмите "Запустить" для предпросмотра, затем "Сохранить видео" для экспорта в WebM.</p>
-            <p>Для конвертации в MP4 выберите файл WebM с помощью кнопки "Конвертировать в MP4".</p>
-            <p>Видео сохраняется в формате WebM или MP4 с разрешением 5120x1080. Длительность записи можно настроить (по умолчанию 5 секунд).</p>
+            <p>Для конвертации в MP4 нажмите "Конвертировать в MP4" — откроется поиск онлайн-сервисов.</p>
+            <p>Видео сохраняется в формате WebM с разрешением 5120x1080. Длительность записи можно настроить (по умолчанию 5 секунд).</p>
         </div>
     </div>
 
@@ -532,7 +531,6 @@
         const videoCanvas = document.getElementById('videoCanvas');
         const downloadLink = document.getElementById('downloadLink');
         const downloadAnchor = document.getElementById('downloadAnchor');
-        const downloadMp4Anchor = document.getElementById('downloadMp4Anchor');
         const status = document.getElementById('status');
         const textEffect = document.getElementById('textEffect');
         const bgEffect = document.getElementById('bgEffect');
@@ -778,7 +776,7 @@
                     stopBtn.disabled = false;
                     convertBtn.disabled = false;
                     
-                    status.textContent = "Видео WebM готово к скачиванию! Используйте 'Конвертировать в MP4' для преобразования.";
+                    status.textContent = "Видео WebM готово к скачиванию! Нажмите 'Конвертировать в MP4' для поиска онлайн-сервисов.";
                     
                     // Перезапускаем анимацию предпросмотра, если она была активна
                     if (!animationId) {
@@ -826,49 +824,19 @@
             mediaRecorder.stop();
         }
         
-        // Обработчик для кнопки конвертации
+        // Обработчик для кнопки конвертации: Поиск в интернете "webm to mp4"
         convertBtn.addEventListener('click', () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'video/webm';
-            input.style.display = 'none';
+            status.textContent = "Открываем поиск онлайн-конвертеров WebM в MP4...";
+            convertBtn.disabled = true;
             
-            input.addEventListener('change', async (event) => {
-                const file = event.target.files[0];
-                if (file) {
-                    convertBtn.disabled = true;
-                    status.textContent = "Отправка файла на сервер для конвертации...";
-                    
-                    const formData = new FormData();
-                    formData.append('video', file);
-                    
-                    try {
-                        const response = await fetch('https://lenta-2r23.onrender.com/convert', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        if (response.ok) {
-                            const blob = await response.blob();
-                            const url = URL.createObjectURL(blob);
-                            downloadMp4Anchor.href = url;
-                            downloadMp4Anchor.style.display = 'inline';
-                            status.textContent = "Конвертация завершена! MP4 готов к скачиванию.";
-                        } else {
-                            throw new Error('Ошибка сервера');
-                        }
-                    } catch (error) {
-                        console.error('Ошибка при конвертации:', error);
-                        status.textContent = "Ошибка при конвертации в MP4. Попробуйте снова.";
-                    } finally {
-                        convertBtn.disabled = false;
-                    }
-                }
-            });
+            // Открываем новую вкладку с поиском Google
+            const searchUrl = 'https://www.google.com/search?q=webm+to+mp4+online+converter';
+            window.open(searchUrl, '_blank');
             
-            document.body.appendChild(input);
-            input.click();
-            document.body.removeChild(input);
+            setTimeout(() => {
+                status.textContent = "Используйте онлайн-сервисы для конвертации вашего WebM в MP4.";
+                convertBtn.disabled = false;
+            }, 2000);
         });
         
         // Обработчики событий
@@ -926,6 +894,6 @@
         renderFrame(performance.now());
     </script>
 </body>
-
 </html>
+
 
