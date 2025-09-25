@@ -5,35 +5,48 @@ const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 
-const app = express();
-const port = process.env.PORT || 10000; // Render использует PORT (по умолчанию 10000)
+// Указываем путь к FFmpeg явно
+const ffmpegPath = '/usr/bin/ffmpeg';
+ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Настройка CORS с явным указанием фронтенд-URL
+const app = express();
+const port = process.env.PORT || 10000;
+
+// Настройка CORS
 app.use(cors({
-    origin: 'https://lenta-kohl.vercel.app', // Указываем ваш Vercel-URL
+    origin: 'https://lenta-kohl.vercel.app',
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
 
-// Логирование всех входящих запросов
+// Логирование всех запросов
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 });
 
-// Настройка multer для загрузки файлов
+// Настройка multer
 const upload = multer({ dest: 'uploads/' });
 
-// Убедимся, что папка uploads существует
+// Проверка и создание папки uploads
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads', { recursive: true });
     console.log('Создана папка uploads');
 }
 
-// Health-check эндпоинт
+// Health-check эндпоинт с диагностикой FFmpeg
 app.get('/health', (req, res) => {
     console.log('Health-check запрос получен');
-    res.status(200).json({ status: 'OK', message: 'Сервер работает', ffmpeg: !!ffmpeg.path });
+    const ffmpegVersion = fs.existsSync('/app/ffmpeg-version.txt') 
+        ? fs.readFileSync('/app/ffmpeg-version.txt', 'utf8') 
+        : 'FFmpeg версия неизвестна';
+    res.status(200).json({ 
+        status: 'OK', 
+        message: 'Сервер работает', 
+        ffmpeg: !!ffmpeg.path,
+        ffmpegPath: ffmpeg.path,
+        ffmpegVersion: ffmpegVersion
+    });
 });
 
 // Тестовый эндпоинт для корня
@@ -56,8 +69,8 @@ app.post('/convert', upload.single('video'), async (req, res) => {
         console.log(`Конвертация: ${inputPath} -> ${outputPath}`);
 
         // Проверка доступности FFmpeg
-        if (!ffmpeg.path) {
-            console.error('FFmpeg не найден');
+        if (!fs.existsSync(ffmpegPath)) {
+            console.error('FFmpeg бинарник не найден по пути:', ffmpegPath);
             return res.status(500).json({ error: 'FFmpeg не установлен на сервере' });
         }
 
@@ -117,4 +130,5 @@ app.listen(port, '0.0.0.0', () => {
     console.log(`Сервер запущен на http://0.0.0.0:${port}`);
     console.log(`Health-check: http://0.0.0.0:${port}/health`);
     console.log(`Convert endpoint: POST http://0.0.0.0:${port}/convert`);
+    console.log(`FFmpeg path: ${ffmpegPath}`);
 });
