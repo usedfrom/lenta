@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
 
-// Указываем путь к FFmpeg явно
+// Указываем путь к FFmpeg
 const ffmpegPath = '/usr/bin/ffmpeg';
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -34,7 +34,7 @@ if (!fs.existsSync('uploads')) {
     console.log('Создана папка uploads');
 }
 
-// Health-check эндпоинт с диагностикой FFmpeg
+// Health-check эндпоинт
 app.get('/health', (req, res) => {
     console.log('Health-check запрос получен');
     const ffmpegVersion = fs.existsSync('/app/ffmpeg-version.txt') 
@@ -74,12 +74,12 @@ app.post('/convert', upload.single('video'), async (req, res) => {
             return res.status(500).json({ error: 'FFmpeg не установлен на сервере' });
         }
 
-        // Конвертация с помощью FFmpeg
+        // Конвертация с пропуском аудио, если его нет
         await new Promise((resolve, reject) => {
-            ffmpeg(inputPath)
+            const command = ffmpeg(inputPath)
                 .output(outputPath)
                 .videoCodec('libx264')
-                .audioCodec('aac')
+                .noAudio() // Пропускаем аудио, так как WebM от canvas не содержит звука
                 .format('mp4')
                 .outputOptions(['-crf 23', '-preset fast'])
                 .on('start', (commandLine) => {
@@ -95,8 +95,17 @@ app.post('/convert', upload.single('video'), async (req, res) => {
                 .on('error', (err) => {
                     console.error('Ошибка FFmpeg:', err.message);
                     reject(err);
-                })
-                .run();
+                });
+
+            // Устанавливаем таймаут (например, 30 секунд)
+            const timeout = setTimeout(() => {
+                command.kill('SIGTERM');
+                reject(new Error('FFmpeg timed out after 30 seconds'));
+            }, 30000);
+
+            command.on('end', () => clearTimeout(timeout));
+            command.on('error', () => clearTimeout(timeout));
+            command.run();
         });
 
         console.log(`Отправка файла: ${outputPath}`);
