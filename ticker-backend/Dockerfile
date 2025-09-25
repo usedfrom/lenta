@@ -1,8 +1,9 @@
-# Используем официальный образ Node.js
-FROM node:18
+# Используем базовый образ с FFmpeg
+FROM node:18-bullseye
 
 # Устанавливаем FFmpeg
-RUN apt-get update && apt-get install -y ffmpeg
+RUN apt-get update && apt-get install -y ffmpeg && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN ffmpeg -version
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -15,7 +16,7 @@ RUN npm install
 COPY . .
 
 # Указываем порт
-EXPOSE 3000
+EXPOSE 10000
 
 # Команда для запуска приложения
 CMD ["npm", "start"]
