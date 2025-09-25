@@ -1,9 +1,12 @@
-# Используем базовый образ с FFmpeg
+# Используем базовый образ с поддержкой FFmpeg
 FROM node:18-bullseye
 
-# Устанавливаем FFmpeg
-RUN apt-get update && apt-get install -y ffmpeg && apt-get clean && rm -rf /var/lib/apt/lists/*
-RUN ffmpeg -version
+# Устанавливаем зависимости и FFmpeg
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    ffmpeg -version > /app/ffmpeg-version.txt 2>&1
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
